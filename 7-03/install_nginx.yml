@@ -1,0 +1,50 @@
+---
+- name: Install and configure Nginx on web servers
+  hosts: webservers
+  become: yes
+  vars:
+    nginx_port: 80
+  
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+    
+    - name: Install nginx
+      apt:
+        name: nginx
+        state: present
+    
+    - name: Ensure nginx is running
+      service:
+        name: nginx
+        state: started
+        enabled: yes
+    
+    - name: Create custom index page
+      copy:
+        content: |
+          <html>
+          <head><title>Welcome to {{ ansible_hostname }}</title></head>
+          <body>
+          <h1>Hello from {{ ansible_hostname }}!</h1>
+          <p>Server IP: {{ ansible_default_ipv4.address }}</p>
+          <p>Deployed by Ansible on {{ ansible_date_time.date }}</p>
+          </body>
+          </html>
+        dest: /var/www/html/index.html
+        mode: '0644'
+    
+    - name: Verify nginx is listening on port {{ nginx_port }}
+      wait_for:
+        port: "{{ nginx_port }}"
+        timeout: 10
+    
+    - name: Show nginx status
+      command: systemctl status nginx --no-pager
+      register: nginx_status
+    
+    - name: Display nginx status
+      debug:
+        var: nginx_status.stdout_lines
